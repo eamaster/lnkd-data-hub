@@ -1,0 +1,28 @@
+# Node
+node_modules/
+.npmrc
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Env
+.env
+.env*.local
+app/.env
+app/.env*.local
+workers/.dev.vars
+
+# Build
+.next/
+dist/
+coverage/
+.vscode/
+.DS_Store
+
+# Wrangler / CF
+workers/.wrangler/
+wrangler.toml.local
+
+# Cypress
+cypress/videos/
+cypress/screenshots/

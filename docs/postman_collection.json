@@ -1,0 +1,23 @@
+{
+  "info": {
+    "name": "LinkedIn Data Hub Proxy",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    { "name": "Search People", "request": { "method": "GET", "url": "{{base}}/api/search/people?q=john&limit=5" } },
+    { "name": "Search Companies", "request": { "method": "GET", "url": "{{base}}/api/search/companies?q=acme&limit=5" } },
+    { "name": "Search Products", "request": { "method": "GET", "url": "{{base}}/api/search/products?q=crm&offsite=1&limit=5" } },
+    { "name": "Search Jobs", "request": { "method": "GET", "url": "{{base}}/api/search/jobs?q=engineer&limit=5" } },
+    { "name": "Search Posts", "request": { "method": "GET", "url": "{{base}}/api/search/posts?q=ai&limit=5" } },
+    { "name": "Events", "request": { "method": "GET", "url": "{{base}}/api/events?status=upcoming&limit=5" } },
+    { "name": "Company Details", "request": { "method": "GET", "url": "{{base}}/api/companies/123" } },
+    { "name": "Company Employees", "request": { "method": "GET", "url": "{{base}}/api/companies/123/employees?limit=5" } },
+    { "name": "Product Details", "request": { "method": "GET", "url": "{{base}}/api/products/456" } },
+    { "name": "Trending Products", "request": { "method": "GET", "url": "{{base}}/api/products/trending?limit=5" } },
+    { "name": "Job Details", "request": { "method": "GET", "url": "{{base}}/api/jobs/789" } },
+    { "name": "Post Details", "request": { "method": "GET", "url": "{{base}}/api/posts/abc" } },
+    { "name": "Comment on Post", "request": { "method": "POST", "url": "{{base}}/api/posts/abc/comment", "header": [ {"key":"Content-Type","value":"application/json"} ], "body": { "mode":"raw", "raw":"{\n  \"text\": \"Nice post!\"\n}" } } },
+    { "name": "Admin Usage", "request": { "method": "GET", "url": "{{base}}/api/admin/usage" } }
+  ],
+  "variable": [ { "key": "base", "value": "http://127.0.0.1:8787" } ]
+}

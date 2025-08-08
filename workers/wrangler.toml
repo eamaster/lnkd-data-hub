@@ -1,0 +1,19 @@
+name = "lnkd-data-hub-proxy"
+main = "src/index.ts"
+compatibility_date = "2024-07-12"
+
+[vars]
+RAPIDAPI_HOST = "linkedin-api-data.p.rapidapi.com"
+CACHE_TTL_SECONDS = 300
+
+# Production KV binding (set real IDs before deploy)
+[env.production]
+[[env.production.kv_namespaces]]
+binding = "LINKEDIN_HUB_KV"
+id = "REPLACE_WITH_KV_ID"
+preview_id = "REPLACE_WITH_PREVIEW_ID"
+
+# Secrets to set via `wrangler secret put`:
+# - RAPIDAPI_KEY
+# - JWT_SECRET
+# - STRIPE_WEBHOOK_SECRET (optional)

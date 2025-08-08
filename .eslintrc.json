@@ -1,0 +1,11 @@
+{
+  "root": true,
+  "extends": ["next", "next/core-web-vitals"],
+  "parserOptions": {
+    "project": ["./app/tsconfig.json", "./workers/tsconfig.json"],
+    "tsconfigRootDir": "__dirname"
+  },
+  "rules": {
+    "@next/next/no-img-element": "off"
+  }
+}
