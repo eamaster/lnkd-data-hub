@@ -5,6 +5,17 @@ import { api } from '@/lib/api';
 
 type Tab = 'people' | 'companies' | 'products' | 'jobs' | 'posts' | 'events';
 
+function normalizeResults(data: any): any[] {
+  if (!data) return [];
+  if (Array.isArray(data)) return data;
+  const candidates = [data.results, data.data, data.items, data.list, data.elements];
+  for (const c of candidates) {
+    if (Array.isArray(c)) return c;
+  }
+  // Last resort: wrap the object so UI can render it
+  return [data];
+}
+
 export default function SearchPage() {
   const [tab, setTab] = useState<Tab>('products');
   const [query, setQuery] = useState('');
@@ -43,7 +54,7 @@ export default function SearchPage() {
           data = await api.events(params);
           break;
       }
-      setResults(Array.isArray(data?.results) ? data.results : data?.data || []);
+      setResults(normalizeResults(data));
     } catch (e: any) {
       setError(e?.message || 'Search failed');
       setResults([]);
