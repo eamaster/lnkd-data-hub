@@ -23,6 +23,22 @@ export const api = {
     posts: (params: URLSearchParams) => request(`/api/search/posts?${params.toString()}`),
   },
   events: (params: URLSearchParams) => request(`/api/events?${params.toString()}`),
+  companies: {
+    details: (id: string) => request(`/api/companies/${id}`),
+    employees: (id: string, limit?: number) => request(`/api/companies/${id}/employees?limit=${limit ?? 10}`),
+  },
+  products: {
+    details: (id: string) => request(`/api/products/${id}`),
+    trending: (limit?: number) => request(`/api/products/trending?limit=${limit ?? 10}`),
+  },
+  jobs: {
+    details: (id: string) => request(`/api/jobs/${id}`),
+  },
+  posts: {
+    details: (id: string) => request(`/api/posts/${id}`),
+    comment: (postId: string, body: { text: string }) => request(`/api/posts/${postId}/comment`, { method: 'POST', body: JSON.stringify(body) }),
+  },
+  // Legacy compatibility
   company: (id: string) => request(`/api/companies/${id}`),
   companyEmployees: (id: string, limit?: number) => request(`/api/companies/${id}/employees?limit=${limit ?? 10}`),
   product: (id: string) => request(`/api/products/${id}`),

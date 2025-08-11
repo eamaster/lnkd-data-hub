@@ -145,7 +145,8 @@ app.get('/api/jobs/:jobId', async (c) => {
   const g = await guard(c); if (g) return g;
   const { jobId } = c.req.param();
   // Fix: RapidAPI endpoint is /job/details (not /jobs/details)
-  const path = `/job/details?${new URLSearchParams({ jobId })}`;
+  // RapidAPI expects the parameter name to be "job_id"; provider path is "/jobs/details"
+  const path = `/jobs/details?${new URLSearchParams({ job_id: jobId })}`;
   return cacheFetch(c.req.raw, c.env, async () => withConcurrency(() => fetchRapid(c.env, path)));
 });
 
