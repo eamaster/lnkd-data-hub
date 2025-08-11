@@ -91,7 +91,8 @@ app.get('/api/search/jobs', async (c) => {
   const g = await guard(c); if (g) return g;
   const schema = z.object({ q: z.string().optional(), location: z.string().optional(), limit: z.coerce.number().min(1).max(50).optional(), offset: z.coerce.number().min(0).optional() });
   let parsed; try { parsed = getValidatedSearchParams(new URL(c.req.url), schema); } catch (e: any) { return jsonError(400, 'Invalid query', e.issues); }
-  const path = `/jobs/search?${new URLSearchParams({ query: parsed.q || '', location: parsed.location||'', limit: String(parsed.limit||10), offset: String(parsed.offset||0) })}`;
+  // Fix: RapidAPI endpoint is /job/search (not /jobs/search)
+  const path = `/job/search?${new URLSearchParams({ query: parsed.q || '', location: parsed.location||'', limit: String(parsed.limit||10), offset: String(parsed.offset||0) })}`;
   return cacheFetch(c.req.raw, c.env, async () => withConcurrency(() => fetchRapid(c.env, path)));
 });
 
@@ -143,7 +144,8 @@ app.get('/api/products/trending', async (c) => {
 app.get('/api/jobs/:jobId', async (c) => {
   const g = await guard(c); if (g) return g;
   const { jobId } = c.req.param();
-  const path = `/jobs/details?${new URLSearchParams({ jobId })}`;
+  // Fix: RapidAPI endpoint is /job/details (not /jobs/details)
+  const path = `/job/details?${new URLSearchParams({ jobId })}`;
   return cacheFetch(c.req.raw, c.env, async () => withConcurrency(() => fetchRapid(c.env, path)));
 });
 
