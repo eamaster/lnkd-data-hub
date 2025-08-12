@@ -104,7 +104,11 @@ app.get('/api/search/jobs', async (c) => {
     limit: String(parsed.limit || 10),
   });
   if (parsed.location) searchParams.set('location', parsed.location);
-  if (parsed.offset != null) searchParams.set('offset', String(parsed.offset));
+  if (parsed.offset != null) {
+    searchParams.set('offset', String(parsed.offset));
+    // Some variants use 'start' instead of 'offset'. Send both to maximize compatibility.
+    searchParams.set('start', String(parsed.offset));
+  }
   if (parsed.offsite != null) searchParams.set('offsite', String(parsed.offsite));
   if (parsed.geo) searchParams.set('geo', parsed.geo);
   const path = `/job/search?${searchParams.toString()}`;
@@ -238,6 +242,33 @@ app.get('/api/search/jobfunction', async (c) => {
   const schema = z.object({ query: z.string(), offsite: z.coerce.number().min(0).max(1).default(0), limit: z.coerce.number().min(1).max(50).default(21) });
   let parsed; try { parsed = getValidatedSearchParams(new URL(c.req.url), schema); } catch (e: any) { return jsonError(400, 'Invalid query', e.issues); }
   const path = `/search/jobfunction?${new URLSearchParams({ query: parsed.query, offsite: String(parsed.offsite), limit: String(parsed.limit) })}`;
+  return cacheFetch(c.req.raw, c.env, async () => withConcurrency(() => fetchRapid(c.env, path)));
+});
+
+// Location search
+app.get('/api/search/location', async (c) => {
+  const g = await guard(c); if (g) return g;
+  const schema = z.object({ query: z.string(), offsite: z.coerce.number().min(0).max(1).default(0), limit: z.coerce.number().min(1).max(50).default(11) });
+  let parsed; try { parsed = getValidatedSearchParams(new URL(c.req.url), schema); } catch (e: any) { return jsonError(400, 'Invalid query', e.issues); }
+  const path = `/search/location?${new URLSearchParams({ query: parsed.query, offsite: String(parsed.offsite), limit: String(parsed.limit) })}`;
+  return cacheFetch(c.req.raw, c.env, async () => withConcurrency(() => fetchRapid(c.env, path)));
+});
+
+// Industry search
+app.get('/api/search/industry', async (c) => {
+  const g = await guard(c); if (g) return g;
+  const schema = z.object({ query: z.string(), offsite: z.coerce.number().min(0).max(1).default(0), limit: z.coerce.number().min(1).max(50).default(10) });
+  let parsed; try { parsed = getValidatedSearchParams(new URL(c.req.url), schema); } catch (e: any) { return jsonError(400, 'Invalid query', e.issues); }
+  const path = `/search/industry?${new URLSearchParams({ query: parsed.query, offsite: String(parsed.offsite), limit: String(parsed.limit) })}`;
+  return cacheFetch(c.req.raw, c.env, async () => withConcurrency(() => fetchRapid(c.env, path)));
+});
+
+// Company search
+app.get('/api/search/company', async (c) => {
+  const g = await guard(c); if (g) return g;
+  const schema = z.object({ query: z.string(), offsite: z.coerce.number().min(0).max(1).default(0), limit: z.coerce.number().min(1).max(50).default(10) });
+  let parsed; try { parsed = getValidatedSearchParams(new URL(c.req.url), schema); } catch (e: any) { return jsonError(400, 'Invalid query', e.issues); }
+  const path = `/search/company?${new URLSearchParams({ query: parsed.query, offsite: String(parsed.offsite), limit: String(parsed.limit) })}`;
   return cacheFetch(c.req.raw, c.env, async () => withConcurrency(() => fetchRapid(c.env, path)));
 });
 

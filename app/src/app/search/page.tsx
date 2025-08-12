@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { api } from '@/lib/api';
 
 type Tab = 'people' | 'companies' | 'products' | 'jobs' | 'posts' | 'events';
@@ -246,20 +246,61 @@ function ResultCard({ result, type }: { result: any; type: Tab }) {
 }
 
 export default function SearchPage() {
-  const [tab, setTab] = useState<Tab>('products');
+  const [tab, setTab] = useState<Tab>('jobs');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<any[]>([]);
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Enhanced search filters (primarily for jobs)
+  const [location, setLocation] = useState('');
+  const [jobFunction, setJobFunction] = useState('');
+  const [industry, setIndustry] = useState('');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
-  const run = async () => {
+  // Suggestions for filters (simple, native datalist)
+  const [locationOptions, setLocationOptions] = useState<string[]>([]);
+  const [jobFunctionOptions, setJobFunctionOptions] = useState<string[]>([]);
+  const [industryOptions, setIndustryOptions] = useState<string[]>([]);
+  // Keep raw suggestion objects so we can map labels to ids (e.g., geo)
+  const locationRawRef = useRef<any[]>([]);
+  const jobFunctionRawRef = useRef<any[]>([]);
+  const industryRawRef = useRef<any[]>([]);
+
+  const PAGE_SIZE = 10;
+  const [lastBatchCount, setLastBatchCount] = useState(0);
+  const canLoadMore = lastBatchCount === PAGE_SIZE;
+  const seenKeysRef = useRef<Set<string>>(new Set());
+
+  function getItemKey(item: any, type: Tab): string {
+    try {
+      if (type === 'jobs') {
+        const card = item?.jobCard?.jobPostingCard;
+        const urn = card?.entityUrn || card?.jobPosting?.entityUrn || card?.preDashNormalizedJobPostingUrn;
+        if (urn) return String(urn);
+      }
+      if (type === 'companies') {
+        return String(item?.entityUrn || item?.company?.entityUrn || JSON.stringify(item).slice(0, 120));
+      }
+      return String(item?.id || item?.entityUrn || JSON.stringify(item).slice(0, 120));
+    } catch {
+      return Math.random().toString(36).slice(2);
+    }
+  }
+
+  const run = async (loadMore: boolean = false) => {
     setLoading(true);
     setError(null);
+    console.log('🔍 Search params:', { query, location, jobFunction, industry, tab, loadMore, page });
     const params = new URLSearchParams();
-    if (query) params.set('q', query);
-    params.set('limit', '10');
-    params.set('offset', String(page * 10));
+    let effectiveQuery = query;
+    if (jobFunction) effectiveQuery = `${effectiveQuery} ${jobFunction}`.trim();
+    if (industry) effectiveQuery = `${effectiveQuery} ${industry}`.trim();
+    if (effectiveQuery) params.set('q', effectiveQuery);
+    params.set('limit', String(PAGE_SIZE));
+    const nextPage = loadMore ? page + 1 : 0;
+    params.set('offset', String(nextPage * PAGE_SIZE));
     try {
       let data: any = {};
       switch (tab) {
@@ -274,7 +315,20 @@ export default function SearchPage() {
           data = await api.search.products(params);
           break;
         case 'jobs':
+          if (location) {
+            params.set('location', location);
+            // Try to map to geo id from suggestions
+            const match = locationRawRef.current.find((o) => {
+              const label = o?.name || o?.text || o?.label || '';
+              return String(label).toLowerCase() === location.toLowerCase();
+            }) || locationRawRef.current[0];
+            const geo = match?.geo || match?.id || match?.entityUrn?.split(':').pop();
+            console.log('🌍 Location mapping:', { location, match, geo });
+            if (geo) params.set('geo', String(geo));
+          }
+          console.log('🎯 Final job search params:', params.toString());
           data = await api.search.jobs(params);
+          console.log('📊 API response data:', data);
           break;
         case 'posts':
           data = await api.search.posts(params);
@@ -283,10 +337,32 @@ export default function SearchPage() {
           data = await api.events(params);
           break;
       }
-      setResults(normalizeResults(data));
+      const rawBatch = normalizeResults(data);
+      // Deduplicate
+      const batch: any[] = [];
+      const seen = loadMore ? seenKeysRef.current : new Set<string>();
+      for (const item of rawBatch) {
+        const key = getItemKey(item, tab);
+        if (!seen.has(key)) {
+          seen.add(key);
+          batch.push(item);
+        }
+      }
+      seenKeysRef.current = seen;
+      setLastBatchCount(batch.length);
+      console.log('📈 Batch info:', { batchLength: batch.length, PAGE_SIZE, canLoadMore: batch.length === PAGE_SIZE, loadMore, nextPage });
+      if (loadMore) {
+        setResults((prev) => [...prev, ...batch]);
+        setPage(nextPage);
+      } else {
+        setResults(batch);
+        setPage(0);
+        // Reset dedupe set for fresh search
+        seenKeysRef.current = seen;
+      }
     } catch (e: any) {
       setError(e?.message || 'Search failed');
-      setResults([]);
+      if (!loadMore) setResults([]);
     } finally {
       setLoading(false);
     }
@@ -295,15 +371,194 @@ export default function SearchPage() {
   return (
     <main className="max-w-5xl mx-auto p-6 space-y-6">
       <h1 className="text-2xl font-semibold">Unified Search</h1>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {(['people','companies','products','jobs','posts','events'] as Tab[]).map((t) => (
-          <button key={t} onClick={() => setTab(t)} className={`px-3 py-1 rounded ${tab===t?'bg-blue-600 text-white':'bg-gray-200'}`}>{t}</button>
+          <button type="button" key={t} onClick={() => setTab(t)} className={`px-3 py-1 rounded ${tab===t?'bg-blue-600 text-white':'bg-gray-200'}`}>{t}</button>
         ))}
       </div>
-      <div className="flex gap-3">
-        <input value={query} onChange={(e)=>setQuery(e.target.value)} className="border p-2 rounded flex-1" placeholder="Search query" />
-        <button onClick={run} className="px-4 py-2 bg-blue-600 text-white rounded" disabled={loading}>{loading?'Searching...':'Search'}</button>
-      </div>
+      {/* Layout: for jobs show a two-column layout on desktop */}
+      {tab === 'jobs' ? (
+        <div className="grid grid-cols-1 md:grid-cols-12 md:gap-6">
+          <form
+            className="flex gap-3 items-center md:col-span-8"
+            onSubmit={(e) => { e.preventDefault(); run(false); }}
+          >
+            <input value={query} onChange={(e)=>setQuery(e.target.value)} className="border p-2 rounded flex-1" placeholder="Search query" />
+            <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded" disabled={loading}>{loading?'Searching...':'Search'}</button>
+          </form>
+          <div className="bg-gray-50 p-4 rounded-lg md:col-span-4 mt-3 md:mt-0">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-medium text-gray-900">Job Filters</h3>
+              <button type="button"
+                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                className="text-blue-600 hover:text-blue-700 text-sm"
+              >
+                {showAdvancedFilters ? 'Hide Filters' : 'Show More Filters'}
+              </button>
+            </div>
+            
+            <div className="grid md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                <input 
+                  list="location-suggestions"
+                  value={location} 
+                  onChange={async (e) => {
+                    const v = e.target.value;
+                    setLocation(v);
+                    if (v && v.length >= 2) {
+                      try {
+                        const res: any = await api.searchLocation(v, 11, 0);
+                        const elems = res?.data?.elements || res?.elements || [];
+                        locationRawRef.current = elems;
+                        const labels = elems
+                          .map((o: any) => o?.name || o?.text || o?.label)
+                          .filter(Boolean);
+                        setLocationOptions(labels);
+                      } catch {
+                        // ignore suggestion errors
+                      }
+                    }
+                    // Auto-trigger search when location changes and we have results
+                    if (results.length > 0) {
+                      setTimeout(() => run(false), 500); // Debounce
+                    }
+                  }} 
+                  className="w-full border p-2 rounded" 
+                  placeholder="e.g., New York, Remote, San Francisco" 
+                />
+                <datalist id="location-suggestions">
+                  {locationOptions.map((opt) => (
+                    <option key={opt} value={opt} />
+                  ))}
+                </datalist>
+              </div>
+              
+              {showAdvancedFilters && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Job Function</label>
+                    <input 
+                      list="jobfunction-suggestions"
+                      value={jobFunction} 
+                      onChange={async (e) => {
+                        const v = e.target.value;
+                        setJobFunction(v);
+                        if (v && v.length >= 2) {
+                          try {
+                            const res: any = await api.searchJobFunction(v, 21, 0);
+                            const elems = res?.data?.elements || res?.elements || [];
+                            jobFunctionRawRef.current = elems;
+                            const labels = elems
+                              .map((o: any) => o?.name || o?.text || o?.label)
+                              .filter(Boolean);
+                            setJobFunctionOptions(labels);
+                          } catch {}
+                        }
+                      }} 
+                      className="w-full border p-2 rounded" 
+                      placeholder="e.g., Engineering, Marketing, Sales" 
+                    />
+                    <datalist id="jobfunction-suggestions">
+                      {jobFunctionOptions.map((opt) => (
+                        <option key={opt} value={opt} />
+                      ))}
+                    </datalist>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
+                    <input 
+                      list="industry-suggestions"
+                      value={industry} 
+                      onChange={async (e) => {
+                        const v = e.target.value;
+                        setIndustry(v);
+                        if (v && v.length >= 2) {
+                          try {
+                            const res: any = await api.searchIndustry(v, 10, 0);
+                            const elems = res?.data?.elements || res?.elements || [];
+                            industryRawRef.current = elems;
+                            const labels = elems
+                              .map((o: any) => o?.name || o?.text || o?.label)
+                              .filter(Boolean);
+                            setIndustryOptions(labels);
+                          } catch {}
+                        }
+                      }} 
+                      className="w-full border p-2 rounded" 
+                      placeholder="e.g., Technology, Finance, Healthcare" 
+                    />
+                    <datalist id="industry-suggestions">
+                      {industryOptions.map((opt) => (
+                        <option key={opt} value={opt} />
+                      ))}
+                    </datalist>
+                  </div>
+                </>
+              )}
+            </div>
+            
+            <div className="mt-3 space-y-2">
+              {(location || jobFunction || industry) && (
+                <div className="flex flex-wrap gap-2">
+                  {location && (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                      Location: {location}
+                    <button type="button" onClick={() => setLocation('')} className="ml-2 hover:text-blue-600">×</button>
+                    </span>
+                  )}
+                  {jobFunction && (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-green-100 text-green-800">
+                      Function: {jobFunction}
+                      <button type="button" onClick={() => setJobFunction('')} className="ml-2 hover:text-green-600">×</button>
+                    </span>
+                  )}
+                  {industry && (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-purple-100 text-purple-800">
+                      Industry: {industry}
+                      <button type="button" onClick={() => setIndustry('')} className="ml-2 hover:text-purple-600">×</button>
+                    </span>
+                  )}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <button 
+                  type="button" 
+                  onClick={() => run(false)} 
+                  className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                  disabled={loading}
+                >
+                  Apply Filters
+                </button>
+                {(location || jobFunction || industry) && (
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      setLocation('');
+                      setJobFunction('');
+                      setIndustry('');
+                      run(false);
+                    }} 
+                    className="px-3 py-1 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300"
+                  >
+                    Clear All
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <form
+            className="flex gap-3 items-center"
+            onSubmit={(e) => { e.preventDefault(); run(false); }}
+          >
+            <input value={query} onChange={(e)=>setQuery(e.target.value)} className="border p-2 rounded flex-1" placeholder="Search query" />
+            <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded" disabled={loading}>{loading?'Searching...':'Search'}</button>
+          </form>
+        </div>
+      )}
       {error && <div className="text-red-600">{error}</div>}
       <div className="grid gap-4">
         {loading && (
@@ -321,10 +576,17 @@ export default function SearchPage() {
           <ResultCard key={i} result={result} type={tab} />
         ))}
       </div>
-      <div className="flex gap-2">
-        <button disabled={page===0} onClick={()=>setPage(p=>Math.max(0,p-1))} className="px-3 py-1 bg-gray-200 rounded">Prev</button>
-        <button onClick={()=>setPage(p=>p+1)} className="px-3 py-1 bg-gray-200 rounded">Next</button>
-      </div>
+      {results.length > 0 && (
+        <div className="flex justify-center mt-4">
+          <button type="button"
+            onClick={() => run(true)} 
+            disabled={loading || !canLoadMore}
+            className={`px-4 py-2 rounded ${canLoadMore ? 'bg-gray-200 hover:bg-gray-300' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
+          >
+            {loading ? 'Loading...' : (canLoadMore ? 'Load More' : 'No more results')}
+          </button>
+        </div>
+      )}
     </main>
   );
 }

@@ -56,4 +56,13 @@ export const api = {
     usage: () => request(`/api/admin/usage`),
     refreshCache: () => request(`/api/admin/refresh-cache`, { method: 'POST' }),
   },
+  // Additional search endpoints
+  searchLocation: (query: string, limit = 11, offsite = 0) => 
+    request(`/api/search/location?query=${encodeURIComponent(query)}&limit=${limit}&offsite=${offsite}`),
+  searchJobFunction: (query: string, limit = 21, offsite = 0) => 
+    request(`/api/search/jobfunction?query=${encodeURIComponent(query)}&limit=${limit}&offsite=${offsite}`),
+  searchIndustry: (query: string, limit = 10, offsite = 0) => 
+    request(`/api/search/industry?query=${encodeURIComponent(query)}&limit=${limit}&offsite=${offsite}`),
+  searchCompany: (query: string, limit = 10, offsite = 0) => 
+    request(`/api/search/company?query=${encodeURIComponent(query)}&limit=${limit}&offsite=${offsite}`),
 };
