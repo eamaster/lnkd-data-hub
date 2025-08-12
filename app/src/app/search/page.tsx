@@ -62,11 +62,22 @@ function JobCard({ job, onClick }: { job: any; onClick?: () => void }) {
   return (
     <div 
       className="bg-white rounded-lg shadow-md p-6 border border-gray-200 hover:shadow-lg transition-shadow cursor-pointer hover:border-blue-300"
-      onClick={onClick || (() => {
-        if (jobId) {
-          window.open(`/jobs/${jobId}`, '_blank');
-        }
-      })}
+        onClick={onClick || (() => {
+    if (jobId) {
+      // Pass job data via URL to avoid losing information
+      const jobData = {
+        id: jobId,
+        title,
+        company,
+        location,
+        isPromoted,
+        hasEasyApply,
+        logoUrl
+      };
+      const encodedData = encodeURIComponent(JSON.stringify(jobData));
+      window.open(`/jobs/${jobId}?data=${encodedData}`, '_blank');
+    }
+  })}
     >
       <div className="flex items-start gap-4">
         <div className="w-16 h-16 flex-shrink-0 flex items-center justify-center bg-gray-100 rounded-lg">

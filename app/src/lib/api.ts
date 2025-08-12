@@ -33,6 +33,12 @@ export const api = {
   },
   jobs: {
     details: (id: string) => request(`/api/jobs/${id}`),
+    full: (id: string, opts?: { offsite?: number; limit?: number }) => {
+      const p = new URLSearchParams();
+      if (opts?.offsite != null) p.set('offsite', String(opts.offsite)); else p.set('offsite', '1');
+      if (opts?.limit != null) p.set('limit', String(opts.limit)); else p.set('limit', '10');
+      return request(`/api/jobs/${id}/full?${p.toString()}`);
+    },
   },
   posts: {
     details: (id: string) => request(`/api/posts/${id}`),

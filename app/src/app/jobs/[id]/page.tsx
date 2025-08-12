@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 
 interface JobDetailPageProps {
   params: { id: string };
@@ -12,14 +13,78 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
   const [job, setJob] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     const fetchJobDetails = async () => {
       try {
         setLoading(true);
         setError(null);
-        const data = await api.jobs.details(params.id);
-        setJob(data);
+        
+        // First, try to get full job details from API
+        const apiResponse = await api.jobs.details(params.id);
+        
+        // Check if we got actual job description from the API
+        if (apiResponse?.extractedData?.hasFullDescription) {
+          const extractedData = apiResponse.extractedData;
+          
+          // Get basic info from search params if available
+          let searchData: any = {};
+          const dataParam = searchParams.get('data');
+          if (dataParam) {
+            try {
+              searchData = JSON.parse(decodeURIComponent(dataParam));
+            } catch (e) {
+              console.warn('Failed to parse job data from URL params:', e);
+            }
+          }
+          
+          // Combine search data (for basic info) with API data (for full description)
+          const combinedJob = {
+            fromAPI: true,
+            fromSearch: !!searchData.title,
+            id: params.id,
+            title: searchData.title || `Job Position`,
+            company: searchData.company || 'Company Information Available',
+            location: searchData.location || 'See job description',
+            logoUrl: searchData.logoUrl,
+            isPromoted: searchData.isPromoted || false,
+            hasEasyApply: searchData.hasEasyApply || false,
+            description: extractedData.jobDescription,
+            postedDate: extractedData.postedDate,
+            apiData: apiResponse,
+            hasFullDescription: true
+          };
+          setJob(combinedJob);
+          setLoading(false);
+          return;
+        }
+        
+        // Fallback: if no API data, check if we have job data passed from search results
+        const dataParam = searchParams.get('data');
+        if (dataParam) {
+          try {
+            const jobData = JSON.parse(decodeURIComponent(dataParam));
+            // Use the data from search results (fallback when API fails)
+            setJob({ fromSearch: true, ...jobData });
+            setLoading(false);
+            return;
+          } catch (e) {
+            console.warn('Failed to parse job data from URL params:', e);
+          }
+        }
+        
+        // Final fallback: create a minimal job object
+        const minimalJob = {
+          fromAPI: false,
+          id: params.id,
+          title: `Job ID: ${params.id}`,
+          company: 'Unknown Company',
+          location: '',
+          description: 'Job details could not be loaded. Please try the "Apply on LinkedIn" button to view full details.',
+          hasFullDescription: false
+        };
+        setJob(minimalJob);
       } catch (err: any) {
         setError(err?.message || 'Failed to load job details');
       } finally {
@@ -30,7 +95,7 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
     if (params.id) {
       fetchJobDetails();
     }
-  }, [params.id]);
+  }, [params.id, searchParams]);
 
   if (loading) {
     return (
@@ -65,26 +130,129 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
     );
   }
 
-  // Extract job data - the structure might vary
-  const jobData = job?.jobCard?.jobPostingCard || job?.job || job;
-  const title = jobData?.jobPostingTitle || jobData?.title || 'Job Details';
-  const company = jobData?.primaryDescription?.text || jobData?.company || 'Unknown Company';
-  const location = jobData?.secondaryDescription?.text || jobData?.location || '';
-  const description = jobData?.description || jobData?.jobDescription || 'No description available.';
+  // Extract job data - handle multiple response formats
+  let jobData: any = {};
+  let title = 'Job Details';
+  let company = 'Unknown Company';
+  let location = '';
+  let description = 'No description available.';
+  let skills: string[] = [];
+  let logoUrl: string | null = null;
+  let isPromoted = false;
+  let hasEasyApply = false;
   
-  // Logo handling
-  const logoData = jobData?.companyLogo?.attributes?.[0]?.detailData?.companyLogo?.logoResolutionResult?.vectorImage;
-  const rootUrl = logoData?.rootUrl;
-  const artifact = logoData?.artifacts?.find((a: any) => a.width === 200) || logoData?.artifacts?.[0];
-  const logoUrl = rootUrl && artifact ? `${rootUrl}${artifact.fileIdentifyingUrlPathSegment}` : null;
+  if (job?.fromAPI && job?.hasFullDescription) {
+    // API data with full job description (priority)
+    title = job.title || 'Job Position';
+    company = job.company || 'Company Information Available';
+    location = job.location || 'See job description';
+    logoUrl = job.logoUrl;
+    isPromoted = job.isPromoted || false;
+    hasEasyApply = job.hasEasyApply || false;
+    description = job.description || 'No description available.';
+    
+    jobData = job;
+  } else if (job?.fromSearch) {
+    // Data passed from search results (fallback)
+    title = job.title || 'Job Details';
+    company = job.company || 'Unknown Company';
+    location = job.location || '';
+    logoUrl = job.logoUrl;
+    isPromoted = job.isPromoted || false;
+    hasEasyApply = job.hasEasyApply || false;
+    
+    // Enhanced description with call-to-action
+    description = `
+**Position:** ${title}
+**Company:** ${company}
+${location ? `**Location:** ${location}` : ''}
+
+**About This Opportunity:**
+This is an active job listing on LinkedIn. To view the complete job description, requirements, benefits, and application details, please click the "Apply Now" button below.
+
+**Key Information:**
+• Position: ${title}
+• Company: ${company}
+${location ? `• Location: ${location}` : ''}
+${isPromoted ? '• Featured/Promoted listing' : ''}
+${hasEasyApply ? '• Easy Apply available' : ''}
+
+**Next Steps:**
+1. Click "Apply Now" to view full job details on LinkedIn
+2. Review complete job requirements and responsibilities  
+3. Submit your application directly through LinkedIn
+
+*Note: Complete job descriptions, salary information, and detailed requirements are available on the LinkedIn job posting.*
+    `.trim();
+    
+    jobData = job;
+  } else if (job?.jobCard?.jobPostingCard) {
+    // Format from search results
+    const card = job.jobCard.jobPostingCard;
+    title = card.jobPostingTitle || 'Job Details';
+    company = card.primaryDescription?.text || 'Unknown Company';
+    location = card.secondaryDescription?.text || '';
+    description = card.description || 'No description available.';
+    jobData = card;
+
+  } else if (job?.data?.elements?.[0]?.jobPostingDetailSection) {
+    // Qualification data format - extract what we can
+    const section = job.data.elements[0].jobPostingDetailSection[0];
+    
+    if (section?.howYouMatchCard) {
+      const matchCard = section.howYouMatchCard;
+      
+      // Extract job title and company from the skills or context
+      title = `Job ID: ${params.id}`;
+      
+      // Extract skills from the qualification data
+      const skillsSection = matchCard.howYouMatchSection?.find((s: any) => 
+        s.itemsMatchSection?.groups?.[0]?.header?.includes('Skills')
+      );
+      
+      if (skillsSection) {
+        const skillsItem = skillsSection.itemsMatchSection.groups[0].items?.[0];
+        if (skillsItem?.subtitle) {
+          skills = skillsItem.subtitle.split(', ').map((s: string) => s.trim());
+          description = `Required Skills: ${skillsItem.subtitle}\n\nLocation restrictions: ${matchCard.headerContent || 'Not specified'}`;
+        }
+      }
+      
+      // Try to infer location from the header content
+      if (matchCard.headerContent?.includes('location')) {
+        location = 'Location requirements not met';
+      }
+    }
+    
+    jobData = job.data;
+  } else {
+    // Fallback for other formats
+    jobData = job?.job || job;
+    title = jobData?.jobPostingTitle || jobData?.title || `Job ID: ${params.id}`;
+    company = jobData?.primaryDescription?.text || jobData?.company || 'Unknown Company';
+    location = jobData?.secondaryDescription?.text || jobData?.location || '';
+    description = jobData?.description || jobData?.jobDescription || 'No description available.';
+  }
+  
+  // Logo handling (if not already set from search data)
+  if (!logoUrl) {
+    const logoData = jobData?.companyLogo?.attributes?.[0]?.detailData?.companyLogo?.logoResolutionResult?.vectorImage;
+    const rootUrl = logoData?.rootUrl;
+    const artifact = logoData?.artifacts?.find((a: any) => a.width === 200) || logoData?.artifacts?.[0];
+    logoUrl = rootUrl && artifact ? `${rootUrl}${artifact.fileIdentifyingUrlPathSegment}` : null;
+  }
 
   // Additional details
   const requirements = jobData?.requirements || [];
   const benefits = jobData?.benefits || [];
   const salary = jobData?.salary || jobData?.salaryRange || '';
-  const postedDate = jobData?.postedDate || jobData?.listedAt || '';
-  const isPromoted = jobData?.footerItems?.some((item: any) => item.type === 'PROMOTED');
-  const hasEasyApply = jobData?.footerItems?.some((item: any) => item.type === 'EASY_APPLY_TEXT');
+  const postedDate = job?.postedDate || jobData?.postedDate || jobData?.listedAt || '';
+  
+  // Only check footer items if not already set from search data
+  if (!job?.fromSearch) {
+    isPromoted = jobData?.footerItems?.some((item: any) => item.type === 'PROMOTED') || false;
+    hasEasyApply = jobData?.footerItems?.some((item: any) => item.type === 'EASY_APPLY_TEXT') || false;
+  }
 
   return (
     <main className="max-w-4xl mx-auto p-6">
@@ -149,13 +317,32 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
 
               {/* Action Buttons */}
               <div className="flex gap-3">
-                <button className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
-                  Apply Now
-                </button>
+                <a 
+                  href={`https://www.linkedin.com/jobs/view/${params.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium inline-block"
+                >
+                  Apply on LinkedIn →
+                </a>
                 <button className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
                   Save Job
                 </button>
-                <button className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
+                <button 
+                  onClick={() => {
+                    if (navigator.share) {
+                      navigator.share({
+                        title: `${title} at ${company}`,
+                        url: window.location.href,
+                        text: `Check out this job: ${title} at ${company}`
+                      });
+                    } else {
+                      navigator.clipboard.writeText(window.location.href);
+                      alert('Job link copied to clipboard!');
+                    }
+                  }}
+                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
                   Share
                 </button>
               </div>
@@ -177,12 +364,33 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
             <h3 className="text-xl font-semibold text-gray-900 mb-4">Job Description</h3>
             <div className="prose max-w-none text-gray-700">
               {typeof description === 'string' ? (
-                <div dangerouslySetInnerHTML={{ __html: description.replace(/\n/g, '<br>') }} />
+                <div 
+                  dangerouslySetInnerHTML={{ 
+                    __html: description
+                      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Bold formatting
+                      .replace(/\n/g, '<br>') // Line breaks
+                      .replace(/^• /gm, '&bull; ') // Bullet points
+                  }} 
+                />
               ) : (
                 <p>No description available for this position.</p>
               )}
             </div>
           </div>
+
+          {/* Skills */}
+          {skills.length > 0 && (
+            <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+              <h3 className="text-xl font-semibold text-gray-900 mb-4">Required Skills</h3>
+              <div className="flex flex-wrap gap-2">
+                {skills.map((skill: string, index: number) => (
+                  <span key={index} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                    {skill}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Requirements */}
           {requirements.length > 0 && (
@@ -220,12 +428,17 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
           {/* Quick Apply */}
           <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Apply</h3>
-            <button className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium mb-3">
-              Apply with LinkedIn
-            </button>
-            <button className="w-full px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
-              Upload Resume
-            </button>
+            <a 
+              href={`https://www.linkedin.com/jobs/view/${params.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium mb-3 block text-center"
+            >
+              Apply on LinkedIn
+            </a>
+            <p className="text-sm text-gray-600 text-center">
+              View full job details and apply directly on LinkedIn
+            </p>
           </div>
 
           {/* Company Info */}

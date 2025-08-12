@@ -89,10 +89,25 @@ app.get('/api/search/products', async (c) => {
 
 app.get('/api/search/jobs', async (c) => {
   const g = await guard(c); if (g) return g;
-  const schema = z.object({ q: z.string().optional(), location: z.string().optional(), limit: z.coerce.number().min(1).max(50).optional(), offset: z.coerce.number().min(0).optional() });
+  const schema = z.object({
+    q: z.string().optional(),
+    location: z.string().optional(),
+    limit: z.coerce.number().min(1).max(50).optional(),
+    offset: z.coerce.number().min(0).optional(),
+    offsite: z.coerce.number().min(0).max(1).optional(),
+    geo: z.string().optional(),
+  });
   let parsed; try { parsed = getValidatedSearchParams(new URL(c.req.url), schema); } catch (e: any) { return jsonError(400, 'Invalid query', e.issues); }
-  // Fix: RapidAPI endpoint is /job/search (not /jobs/search)
-  const path = `/job/search?${new URLSearchParams({ query: parsed.q || '', location: parsed.location||'', limit: String(parsed.limit||10), offset: String(parsed.offset||0) })}`;
+  // RapidAPI endpoint: /job/search supports query/offsite/limit/geo
+  const searchParams = new URLSearchParams({
+    query: parsed.q || '',
+    limit: String(parsed.limit || 10),
+  });
+  if (parsed.location) searchParams.set('location', parsed.location);
+  if (parsed.offset != null) searchParams.set('offset', String(parsed.offset));
+  if (parsed.offsite != null) searchParams.set('offsite', String(parsed.offsite));
+  if (parsed.geo) searchParams.set('geo', parsed.geo);
+  const path = `/job/search?${searchParams.toString()}`;
   return cacheFetch(c.req.raw, c.env, async () => withConcurrency(() => fetchRapid(c.env, path)));
 });
 
@@ -144,9 +159,85 @@ app.get('/api/products/trending', async (c) => {
 app.get('/api/jobs/:jobId', async (c) => {
   const g = await guard(c); if (g) return g;
   const { jobId } = c.req.param();
-  // Fix: RapidAPI endpoint is /job/details (not /jobs/details)
-  // RapidAPI expects the parameter name to be "job_id"; provider path is "/jobs/details"
-  const path = `/jobs/details?${new URLSearchParams({ job_id: jobId })}`;
+  
+  // Use the /job/detail endpoint which contains the actual job description
+  const path = `/job/detail?${new URLSearchParams({ query: jobId })}`;
+
+  return cacheFetch(c.req.raw, c.env, async () => withConcurrency(async () => {
+    try {
+      const response = await fetchRapid(c.env, path);
+      
+      if (response.ok) {
+        const text = await response.text();
+        const data = JSON.parse(text);
+        
+        // Extract and restructure the job data for easier frontend consumption
+        if (data?.success && data?.data?.elements) {
+          const elements = data.data.elements;
+          
+          // Find the job description section (usually in elements[1])
+          const jobDescSection = elements.find((el: any) => 
+            el?.jobPostingDetailSection?.[0]?.jobDescription
+          )?.jobPostingDetailSection?.[0]?.jobDescription;
+          
+          // Find the top card section (usually in elements[0])
+          const topCardSection = elements.find((el: any) => 
+            el?.jobPostingDetailSection?.[0]?.topCard
+          )?.jobPostingDetailSection?.[0]?.topCard;
+          
+          // Create a structured response
+          const structuredData = {
+            ...data,
+            extractedData: {
+              jobDescription: jobDescSection?.jobPosting?.description?.text || null,
+              postedDate: jobDescSection?.postedOnText || null,
+              entityUrn: jobDescSection?.jobPosting?.entityUrn || null,
+              topCard: topCardSection || null,
+              hasFullDescription: !!jobDescSection?.jobPosting?.description?.text
+            }
+          };
+          
+          return new Response(JSON.stringify(structuredData), { 
+            status: response.status, 
+            headers: response.headers 
+          });
+        }
+        
+        // Return original response if structure is unexpected
+        return new Response(text, { 
+          status: response.status, 
+          headers: response.headers 
+        });
+      }
+      
+      return response;
+    } catch (error) {
+      console.error(`Error fetching job details for ${jobId}:`, error);
+      return new Response(
+        JSON.stringify({ code: 500, message: 'Failed to fetch job details' }), 
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+  }));
+});
+
+// Optional: extended detail (kept for compatibility)
+app.get('/api/jobs/:jobId/full', async (c) => {
+  const g = await guard(c); if (g) return g;
+  const { jobId } = c.req.param();
+  const url = new URL(c.req.url);
+  const offsite = url.searchParams.get('offsite') ?? '1';
+  const limit = url.searchParams.get('limit') ?? '10';
+  const path = `/job/detail-detail?${new URLSearchParams({ query: jobId, offsite, limit })}`;
+  return cacheFetch(c.req.raw, c.env, async () => withConcurrency(() => fetchRapid(c.env, path)));
+});
+
+// Job function search
+app.get('/api/search/jobfunction', async (c) => {
+  const g = await guard(c); if (g) return g;
+  const schema = z.object({ query: z.string(), offsite: z.coerce.number().min(0).max(1).default(0), limit: z.coerce.number().min(1).max(50).default(21) });
+  let parsed; try { parsed = getValidatedSearchParams(new URL(c.req.url), schema); } catch (e: any) { return jsonError(400, 'Invalid query', e.issues); }
+  const path = `/search/jobfunction?${new URLSearchParams({ query: parsed.query, offsite: String(parsed.offsite), limit: String(parsed.limit) })}`;
   return cacheFetch(c.req.raw, c.env, async () => withConcurrency(() => fetchRapid(c.env, path)));
 });
 
