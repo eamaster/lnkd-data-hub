@@ -20,8 +20,20 @@ function jsonError(status: number, message: string, details?: unknown) {
 
 // CORS for browser calls to the Worker
 app.use('*', async (c, next) => {
-  const origin = c.req.header('Origin') || '*';
-  c.res.headers.set('Access-Control-Allow-Origin', origin);
+  // IMPORTANT: Update ALLOWED_ORIGINS for production!
+  // Add your Cloudflare Pages domain after deployment
+  const ALLOWED_ORIGINS = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    // TODO: Add your production domains here:
+    // 'https://lnkd-data-hub.pages.dev',
+    // 'https://your-custom-domain.com',
+  ];
+
+  const origin = c.req.header('Origin') || '';
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  
+  c.res.headers.set('Access-Control-Allow-Origin', allowedOrigin);
   c.res.headers.set('Vary', 'Origin');
   c.res.headers.set('Access-Control-Allow-Credentials', 'true');
   c.res.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');

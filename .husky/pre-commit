@@ -1,0 +1,29 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+echo "🔍 Checking for exposed secrets..."
+
+# Check if sensitive files are being committed
+if git diff --cached --name-only | grep -E '(\.dev\.vars$|^\.env$|\.env\.local$)'; then
+  echo "❌ ERROR: You're trying to commit sensitive files!"
+  echo "These files contain secrets and should NOT be committed:"
+  git diff --cached --name-only | grep -E '(\.dev\.vars$|^\.env$|\.env\.local$)'
+  echo ""
+  echo "Please unstage these files:"
+  echo "  git reset HEAD workers/.dev.vars"
+  echo "  git reset HEAD .env"
+  exit 1
+fi
+
+# Check for RapidAPI key patterns
+if git diff --cached | grep -E '[0-9a-f]{32}msh[0-9a-f]{16}jsn[0-9a-f]{16}'; then
+  echo "❌ ERROR: RapidAPI key pattern detected in staged changes!"
+  echo "Please remove the key from your code before committing."
+  exit 1
+fi
+
+echo "✅ No secrets detected in staged files"
+
+# Run linter
+npm run lint --quiet || exit 1
+

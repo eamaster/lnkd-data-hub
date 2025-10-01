@@ -1,0 +1,21 @@
+# Cloudflare Pages Build Configuration
+
+# Build command
+build:
+  command: npm install && npm run build
+  cwd: app
+
+# Build output directory  
+publish: app/.next
+
+# Environment variables (set these in Cloudflare Pages dashboard)
+# Required:
+# - NEXT_PUBLIC_WORKER_BASE_URL (e.g., https://lnkd-data-hub-worker.your-subdomain.workers.dev)
+# 
+# Optional:
+# - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+# - SENTRY_DSN
+
+# Node version
+node_version: 18
+

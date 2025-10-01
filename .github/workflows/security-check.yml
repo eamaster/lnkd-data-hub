@@ -1,0 +1,78 @@
+name: Security Audit
+
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+
+jobs:
+  secret-scan:
+    name: Scan for Exposed Secrets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Check for committed secrets
+        run: |
+          echo "🔍 Scanning for exposed secrets..."
+          
+          # Check if sensitive files are committed
+          if git ls-files | grep -E '(\.dev\.vars$|^\.env$|\.env\.local$)'; then
+            echo "❌ ERROR: Sensitive files found in git!"
+            echo "These files should be in .gitignore:"
+            git ls-files | grep -E '(\.dev\.vars$|^\.env$|\.env\.local$)'
+            exit 1
+          fi
+          
+          # Check for hardcoded API keys
+          if git grep -E '[0-9a-f]{32}msh[0-9a-f]{16}jsn[0-9a-f]{16}' HEAD; then
+            echo "❌ ERROR: RapidAPI key pattern found in code!"
+            exit 1
+          fi
+          
+          # Check for hardcoded JWT secrets
+          if git grep -E 'jwt.*secret.*=.*["\x27][^"\x27]{32,}' -i HEAD; then
+            echo "❌ ERROR: Possible JWT secret found in code!"
+            exit 1
+          fi
+          
+          echo "✅ No exposed secrets found!"
+      
+      - name: Verify .gitignore
+        run: |
+          echo "📝 Checking .gitignore..."
+          
+          required_patterns=(
+            "\.env$"
+            "\.env\*\.local"
+            "workers/\.dev\.vars$"
+            "node_modules/"
+          )
+          
+          for pattern in "${required_patterns[@]}"; do
+            if ! grep -q "$pattern" .gitignore; then
+              echo "⚠️  Missing in .gitignore: $pattern"
+            fi
+          done
+          
+          echo "✅ .gitignore check complete"
+
+  dependency-audit:
+    name: Audit Dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Audit npm packages
+        run: |
+          npm audit --audit-level=high || true
+          cd app && npm audit --audit-level=high || true
+          cd ../workers && npm audit --audit-level=high || true
+

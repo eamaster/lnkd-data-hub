@@ -1,0 +1,48 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy-worker:
+    name: Deploy Cloudflare Worker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: |
+          cd workers
+          npm ci
+      
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: workers
+          command: deploy
+        env:
+          RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
+          RAPIDAPI_HOST: ${{ secrets.RAPIDAPI_HOST }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+
+  test-deployment:
+    name: Test Production Deployment
+    needs: deploy-worker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test Worker Health
+        run: |
+          curl -f https://lnkd-data-hub-worker.your-subdomain.workers.dev/api/search/jobs?q=test&limit=1 || exit 1
+      
+      - name: Notify Success
+        run: echo "✅ Deployment successful!"
+

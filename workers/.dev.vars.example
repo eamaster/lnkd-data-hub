@@ -1,0 +1,4 @@
+RAPIDAPI_HOST=linkedin-api-data.p.rapidapi.com
+RAPIDAPI_KEY=your_rapidapi_key_here
+JWT_SECRET=your_jwt_secret_here_min_32_chars
+
