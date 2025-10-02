@@ -36,7 +36,6 @@ jobs:
           npm run build
         env:
           NEXT_PUBLIC_WORKER_BASE_URL: https://lnkd-data-hub-proxy.smah0085.workers.dev
-          NEXT_PUBLIC_BASE_PATH: /lnkd-data-hub
           
       - name: Setup Pages
         uses: actions/configure-pages@v4
