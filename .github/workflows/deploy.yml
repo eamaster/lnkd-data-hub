@@ -17,11 +17,12 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
+          cache-dependency-path: 'package-lock.json'
       
       - name: Install dependencies
         run: |
           cd workers
-          npm ci
+          npm install
       
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
@@ -41,7 +42,7 @@ jobs:
     steps:
       - name: Test Worker Health
         run: |
-          curl -f https://lnkd-data-hub-worker.your-subdomain.workers.dev/api/search/jobs?q=test&limit=1 || exit 1
+          curl -f https://lnkd-data-hub-proxy.smah0085.workers.dev/api/search/jobs?q=test&limit=1 || exit 1
       
       - name: Notify Success
         run: echo "✅ Deployment successful!"
