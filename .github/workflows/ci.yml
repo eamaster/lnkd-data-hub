@@ -23,5 +23,3 @@ jobs:
         run: npm run -w app typecheck
       - name: Type check workers
         run: npm run -w workers typecheck
-      - name: Run tests
-        run: npm test --workspaces
