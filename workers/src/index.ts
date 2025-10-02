@@ -28,6 +28,8 @@ app.use('*', async (c, next) => {
     'https://lnkd-data-hub.pages.dev',
     'https://08db7b8d.lnkd-data-hub.pages.dev',
     'https://be44c609.lnkd-data-hub.pages.dev',
+    'https://hesam.me',
+    'https://eamaster.github.io',
   ];
 
   const origin = c.req.header('Origin') || '';
