@@ -338,9 +338,13 @@ export default function SearchPage() {
             console.log('🌍 Location mapping:', { location, match, geo });
             if (geo) params.set('geo', String(geo));
           }
-          // Add parameters to try to get more diverse results
-          params.set('offsite', '1'); // Try to get non-promoted results
-          if (!params.has('limit')) params.set('limit', '20'); // Get more results
+          // Optimize parameters for better results
+          params.set('offsite', '1'); // Get non-promoted results
+          params.set('limit', '25'); // Get more results per page
+          // Add additional parameters for better diversity
+          if (!params.has('q') || params.get('q') === '') {
+            params.set('q', 'software engineer developer programmer'); // Default search terms
+          }
           console.log('🎯 Final job search params:', params.toString());
           data = await api.search.jobs(params);
           console.log('📊 API response data:', data);
@@ -600,13 +604,21 @@ export default function SearchPage() {
         ))}
       </div>
       {results.length > 0 && (
-        <div className="flex justify-center mt-4">
+        <div className="flex flex-col items-center mt-6 space-y-3">
+          <div className="text-sm text-gray-600">
+            Showing {results.length} results
+            {(tab as string) === 'jobs' && (
+              <span className="ml-2 text-blue-600">
+                (Non-promoted results prioritized)
+              </span>
+            )}
+          </div>
           <button type="button"
             onClick={() => run(true)} 
             disabled={loading || !canLoadMore}
-            className={`px-4 py-2 rounded ${canLoadMore ? 'bg-gray-200 hover:bg-gray-300' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
+            className={`px-8 py-3 rounded font-medium ${canLoadMore ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
           >
-            {loading ? 'Loading...' : (canLoadMore ? 'Load More' : 'No more results')}
+            {loading ? 'Loading More...' : (canLoadMore ? `Load More ${(tab as string) === 'jobs' ? 'Jobs' : 'Results'}` : 'No more results')}
           </button>
         </div>
       )}
@@ -736,12 +748,36 @@ export default function SearchPage() {
 
                 {/* Technical Details (Collapsible) */}
                 <details className="border-t pt-4">
-                  <summary className="font-semibold text-gray-900 cursor-pointer hover:text-blue-600">
-                    Technical Details (Click to expand)
+                  <summary className="font-semibold text-gray-900 cursor-pointer hover:text-blue-600 flex items-center gap-2">
+                    <span>Technical Details</span>
+                    <span className="text-xs text-gray-500">(Click to expand)</span>
                   </summary>
-                  <pre className="bg-gray-100 p-4 rounded-lg text-xs overflow-auto max-h-60 mt-2">
-                    {JSON.stringify(selectedJob.fullData, null, 2)}
-                  </pre>
+                  <div className="mt-3 space-y-3">
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                      <p className="text-sm text-yellow-800">
+                        <strong>Note:</strong> This section shows the raw API response data for developers. 
+                        The main job information above is extracted from this data.
+                      </p>
+                    </div>
+                    <div className="bg-gray-100 rounded-lg p-4">
+                      <div className="flex justify-between items-center mb-2">
+                        <h5 className="font-medium text-gray-900">Raw API Response</h5>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigator.clipboard.writeText(JSON.stringify(selectedJob.fullData, null, 2));
+                            alert('Copied to clipboard!');
+                          }}
+                          className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded hover:bg-blue-200"
+                        >
+                          Copy JSON
+                        </button>
+                      </div>
+                      <pre className="text-xs overflow-auto max-h-60 bg-white p-3 rounded border">
+                        {JSON.stringify(selectedJob.fullData, null, 2)}
+                      </pre>
+                    </div>
+                  </div>
                 </details>
               </div>
             </div>
