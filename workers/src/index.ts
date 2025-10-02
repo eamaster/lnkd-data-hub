@@ -139,6 +139,33 @@ app.get('/api/search/posts', async (c) => {
   return cacheFetch(c.req.raw, c.env, async () => withConcurrency(() => fetchRapid(c.env, path)));
 });
 
+// Event search
+app.get('/api/search/events', async (c) => {
+  const g = await guard(c); if (g) return g;
+  const schema = z.object({ 
+    query: z.string().optional(), 
+    limit: z.coerce.number().min(1).max(50).optional(),
+    offsite: z.coerce.number().min(0).max(1).optional()
+  });
+  let parsed; try { parsed = getValidatedSearchParams(new URL(c.req.url), schema); } catch (e: any) { return jsonError(400, 'Invalid query', e.issues); }
+  const searchParams = new URLSearchParams({ 
+    query: parsed.query || '', 
+    limit: String(parsed.limit || 10),
+    offsite: String(parsed.offsite || 0)
+  });
+  const path = `/even/search?${searchParams}`;
+  return cacheFetch(c.req.raw, c.env, async () => withConcurrency(() => fetchRapid(c.env, path)));
+});
+
+// Event details
+app.get('/api/events/:eventId', async (c) => {
+  const g = await guard(c); if (g) return g;
+  const { eventId } = c.req.param();
+  const path = `/even/detail?${new URLSearchParams({ query: eventId })}`;
+  return cacheFetch(c.req.raw, c.env, async () => withConcurrency(() => fetchRapid(c.env, path)));
+});
+
+// Legacy events endpoint (for backward compatibility)
 app.get('/api/events', async (c) => {
   const g = await guard(c); if (g) return g;
   const schema = z.object({ status: z.enum(['upcoming','ongoing']).default('upcoming'), limit: z.coerce.number().min(1).max(50).optional() });
@@ -147,28 +174,59 @@ app.get('/api/events', async (c) => {
   return cacheFetch(c.req.raw, c.env, async () => withConcurrency(() => fetchRapid(c.env, path)));
 });
 
+// Company details
 app.get('/api/companies/:companyId', async (c) => {
   const g = await guard(c); if (g) return g;
   const { companyId } = c.req.param();
-  const path = `/company/details?${new URLSearchParams({ companyId })}`;
+  const path = `/company/detail?${new URLSearchParams({ query: companyId })}`;
   return cacheFetch(c.req.raw, c.env, async () => withConcurrency(() => fetchRapid(c.env, path)));
 });
 
+// Company employees (people)
 app.get('/api/companies/:companyId/employees', async (c) => {
   const g = await guard(c); if (g) return g;
   const { companyId } = c.req.param();
-  const limit = new URL(c.req.url).searchParams.get('limit') || '10';
-  const path = `/company/employees?${new URLSearchParams({ companyId, limit })}`;
+  const url = new URL(c.req.url);
+  const limit = url.searchParams.get('limit') || '20';
+  const offsite = url.searchParams.get('offsite') || '20';
+  const path = `/company/person?${new URLSearchParams({ query: companyId, limit, offsite })}`;
   return cacheFetch(c.req.raw, c.env, async () => withConcurrency(() => fetchRapid(c.env, path)));
 });
 
+// Company posts
+app.get('/api/companies/:companyId/posts', async (c) => {
+  const g = await guard(c); if (g) return g;
+  const { companyId } = c.req.param();
+  const url = new URL(c.req.url);
+  const limit = url.searchParams.get('limit') || '20';
+  const offsite = url.searchParams.get('offsite') || '24';
+  const path = `/company/post?${new URLSearchParams({ query: companyId, limit, offsite })}`;
+  return cacheFetch(c.req.raw, c.env, async () => withConcurrency(() => fetchRapid(c.env, path)));
+});
+
+// Company jobs
+app.get('/api/companies/:companyId/jobs', async (c) => {
+  const g = await guard(c); if (g) return g;
+  const { companyId } = c.req.param();
+  const url = new URL(c.req.url);
+  const limit = url.searchParams.get('limit') || '10';
+  const offsite = url.searchParams.get('offsite') || '0';
+  const path = `/company/job?${new URLSearchParams({ query: companyId, limit, offsite })}`;
+  return cacheFetch(c.req.raw, c.env, async () => withConcurrency(() => fetchRapid(c.env, path)));
+});
+
+// Product details
 app.get('/api/products/:productId', async (c) => {
   const g = await guard(c); if (g) return g;
   const { productId } = c.req.param();
-  const path = `/product/details?${new URLSearchParams({ productId })}`;
+  const url = new URL(c.req.url);
+  const limit = url.searchParams.get('limit') || '10';
+  const offsite = url.searchParams.get('offsite') || '1';
+  const path = `/product/detail?${new URLSearchParams({ query: productId, limit, offsite })}`;
   return cacheFetch(c.req.raw, c.env, async () => withConcurrency(() => fetchRapid(c.env, path)));
 });
 
+// Product trending (legacy endpoint - keeping for compatibility)
 app.get('/api/products/trending', async (c) => {
   const g = await guard(c); if (g) return g;
   const limit = new URL(c.req.url).searchParams.get('limit') || '10';
@@ -241,6 +299,14 @@ app.get('/api/jobs/:jobId', async (c) => {
   }));
 });
 
+// Job qualification details
+app.get('/api/jobs/:jobId/qualifications', async (c) => {
+  const g = await guard(c); if (g) return g;
+  const { jobId } = c.req.param();
+  const path = `/job/detail-qualification?${new URLSearchParams({ query: jobId })}`;
+  return cacheFetch(c.req.raw, c.env, async () => withConcurrency(() => fetchRapid(c.env, path)));
+});
+
 // Optional: extended detail (kept for compatibility)
 app.get('/api/jobs/:jobId/full', async (c) => {
   const g = await guard(c); if (g) return g;
@@ -288,10 +354,11 @@ app.get('/api/search/company', async (c) => {
   return cacheFetch(c.req.raw, c.env, async () => withConcurrency(() => fetchRapid(c.env, path)));
 });
 
+// Post details
 app.get('/api/posts/:postId', async (c) => {
   const g = await guard(c); if (g) return g;
   const { postId } = c.req.param();
-  const path = `/post/details?${new URLSearchParams({ postId })}`;
+  const path = `/post/detail?${new URLSearchParams({ query: postId })}`;
   return cacheFetch(c.req.raw, c.env, async () => withConcurrency(() => fetchRapid(c.env, path)));
 });
 

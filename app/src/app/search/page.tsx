@@ -339,7 +339,7 @@ export default function SearchPage() {
           data = await api.search.posts(params);
           break;
         case 'events':
-          data = await api.events(params);
+          data = await api.search.events(params);
           break;
       }
       const rawBatch = normalizeResults(data);

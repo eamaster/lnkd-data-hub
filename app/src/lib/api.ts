@@ -21,11 +21,25 @@ export const api = {
     products: (params: URLSearchParams) => request(`/api/search/products?${params.toString()}`),
     jobs: (params: URLSearchParams) => request(`/api/search/jobs?${params.toString()}`),
     posts: (params: URLSearchParams) => request(`/api/search/posts?${params.toString()}`),
+    events: (params: URLSearchParams) => request(`/api/search/events?${params.toString()}`),
   },
-  events: (params: URLSearchParams) => request(`/api/events?${params.toString()}`),
   companies: {
     details: (id: string) => request(`/api/companies/${id}`),
-    employees: (id: string, limit?: number) => request(`/api/companies/${id}/employees?limit=${limit ?? 10}`),
+    employees: (id: string, limit?: number, offsite?: number) => {
+      const params = new URLSearchParams({ limit: String(limit ?? 20) });
+      if (offsite !== undefined) params.set('offsite', String(offsite));
+      return request(`/api/companies/${id}/employees?${params.toString()}`);
+    },
+    posts: (id: string, limit?: number, offsite?: number) => {
+      const params = new URLSearchParams({ limit: String(limit ?? 20) });
+      if (offsite !== undefined) params.set('offsite', String(offsite));
+      return request(`/api/companies/${id}/posts?${params.toString()}`);
+    },
+    jobs: (id: string, limit?: number, offsite?: number) => {
+      const params = new URLSearchParams({ limit: String(limit ?? 10) });
+      if (offsite !== undefined) params.set('offsite', String(offsite));
+      return request(`/api/companies/${id}/jobs?${params.toString()}`);
+    },
   },
   products: {
     details: (id: string) => request(`/api/products/${id}`),
@@ -33,6 +47,7 @@ export const api = {
   },
   jobs: {
     details: (id: string) => request(`/api/jobs/${id}`),
+    qualifications: (id: string) => request(`/api/jobs/${id}/qualifications`),
     full: (id: string, opts?: { offsite?: number; limit?: number }) => {
       const p = new URLSearchParams();
       if (opts?.offsite != null) p.set('offsite', String(opts.offsite)); else p.set('offsite', '1');
@@ -43,6 +58,9 @@ export const api = {
   posts: {
     details: (id: string) => request(`/api/posts/${id}`),
     comment: (postId: string, body: { text: string }) => request(`/api/posts/${postId}/comment`, { method: 'POST', body: JSON.stringify(body) }),
+  },
+  events: {
+    details: (id: string) => request(`/api/events/${id}`),
   },
   // Legacy compatibility
   company: (id: string) => request(`/api/companies/${id}`),

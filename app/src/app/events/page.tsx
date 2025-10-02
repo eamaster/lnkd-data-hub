@@ -8,9 +8,10 @@ export default function EventsPage() {
 
   const run = async () => {
     const params = new URLSearchParams();
-    params.set('status', status);
+    params.set('query', ''); // Empty query for general event search
     params.set('limit', '10');
-    const data = await api.events(params);
+    params.set('offsite', '0');
+    const data = await api.search.events(params);
     setResults(Array.isArray((data as any)?.results) ? (data as any).results : (data as any)?.data || []);
   };
 
