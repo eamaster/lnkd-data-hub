@@ -389,7 +389,8 @@ export default function SearchPage() {
 
   return (
     <main className="max-w-5xl mx-auto p-6 space-y-6">
-      <h1 className="text-2xl font-semibold">Unified Search</h1>
+      <h1 className="text-2xl font-semibold">LinkedIn Data Hub</h1>
+      <p className="text-gray-600">Search people, companies, products, jobs, posts, and events</p>
       <div className="flex flex-wrap items-center gap-2">
         {(['people','companies','products','jobs','posts','events'] as Tab[]).map((t) => (
           <button type="button" key={t} onClick={() => setTab(t)} className={`px-3 py-1 rounded ${tab===t?'bg-blue-600 text-white':'bg-gray-200'}`}>{t}</button>
