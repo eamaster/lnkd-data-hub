@@ -11,7 +11,7 @@ export default function EventsPage() {
     params.set('status', status);
     params.set('limit', '10');
     const data = await api.events(params);
-    setResults(Array.isArray(data?.results) ? data.results : data?.data || []);
+    setResults(Array.isArray((data as any)?.results) ? (data as any).results : (data as any)?.data || []);
   };
 
   return (

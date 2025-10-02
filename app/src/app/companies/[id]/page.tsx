@@ -19,7 +19,7 @@ export default function CompanyPage() {
           api.companyEmployees(id, 10),
         ]);
         setData(d);
-        setEmployees(Array.isArray(e?.results) ? e.results : e?.data || []);
+        setEmployees(Array.isArray((e as any)?.results) ? (e as any).results : (e as any)?.data || []);
       } catch (err: any) {
         setError(err?.message || 'Failed to load company');
       }

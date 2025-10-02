@@ -25,9 +25,9 @@ app.use('*', async (c, next) => {
   const ALLOWED_ORIGINS = [
     'http://localhost:3000',
     'http://127.0.0.1:3000',
-    // TODO: Add your production domains here:
-    // 'https://lnkd-data-hub.pages.dev',
-    // 'https://your-custom-domain.com',
+    'https://lnkd-data-hub.pages.dev',
+    'https://08db7b8d.lnkd-data-hub.pages.dev',
+    'https://be44c609.lnkd-data-hub.pages.dev',
   ];
 
   const origin = c.req.header('Origin') || '';

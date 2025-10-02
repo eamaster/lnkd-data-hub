@@ -22,7 +22,7 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
         setError(null);
         
         // First, try to get full job details from API
-        const apiResponse = await api.jobs.details(params.id);
+        const apiResponse = await api.jobs.details(params.id) as any;
         
         // Check if we got actual job description from the API
         if (apiResponse?.extractedData?.hasFullDescription) {
