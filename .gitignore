@@ -2,7 +2,7 @@
 node_modules/
 .npmrc
 pnpm-lock.yaml
-package-lock.json
+# package-lock.json - Keep this for GitHub Actions
 yarn.lock
 
 # Env
