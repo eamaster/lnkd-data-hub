@@ -14,6 +14,8 @@ workers/.dev.vars
 
 # Build
 .next/
+app/.next/
+app/out/
 dist/
 coverage/
 .vscode/
