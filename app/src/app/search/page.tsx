@@ -329,7 +329,9 @@ export default function SearchPage() {
       let data: any = {};
       switch (tab) {
         case 'companies':
+          console.log('🔍 Calling companies API with params:', params.toString());
           data = await api.search.companies(params);
+          console.log('📊 Companies API response:', data);
           break;
         case 'products':
           params.set('offsite', '1');
@@ -365,20 +367,29 @@ export default function SearchPage() {
           data = await api.search.events(params);
           break;
       }
+      
+      console.log('📈 Batch info:', { tab, dataType: typeof data, dataKeys: Object.keys(data || {}), dataLength: Array.isArray(data) ? data.length : 'not array' });
+      
       const rawBatch = normalizeResults(data);
+      console.log('🔄 Normalized results:', { count: rawBatch.length, sample: rawBatch[0] });
+      
       // Deduplicate
       const batch: any[] = [];
       const seen = loadMore ? seenKeysRef.current : new Set<string>();
       for (const item of rawBatch) {
-        const key = getItemKey(item, tab);
-        if (!seen.has(key)) {
-          seen.add(key);
-          batch.push(item);
+        try {
+          const key = getItemKey(item, tab);
+          if (!seen.has(key)) {
+            seen.add(key);
+            batch.push(item);
+          }
+        } catch (itemError) {
+          console.error('❌ Error processing item:', itemError, item);
         }
       }
       seenKeysRef.current = seen;
       setLastBatchCount(batch.length);
-      console.log('📈 Batch info:', { batchLength: batch.length, PAGE_SIZE, canLoadMore: batch.length === PAGE_SIZE, loadMore, nextPage });
+      console.log('📈 Final batch info:', { batchLength: batch.length, PAGE_SIZE, canLoadMore: batch.length === PAGE_SIZE, loadMore, nextPage });
       if (loadMore) {
         setResults((prev) => [...prev, ...batch]);
         setPage(nextPage);
@@ -389,7 +400,15 @@ export default function SearchPage() {
         seenKeysRef.current = seen;
       }
     } catch (e: any) {
-      setError(e?.message || 'Search failed');
+      console.error('❌ Search error:', e);
+      console.error('❌ Error details:', { 
+        message: e?.message, 
+        stack: e?.stack, 
+        name: e?.name,
+        tab,
+        params: params.toString()
+      });
+      setError(`Search failed: ${e?.message || 'Unknown error'}`);
       if (!loadMore) setResults([]);
     } finally {
       setLoading(false);
