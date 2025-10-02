@@ -16,7 +16,6 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   search: {
-    people: (params: URLSearchParams) => request(`/api/search/people?${params.toString()}`),
     companies: (params: URLSearchParams) => request(`/api/search/companies?${params.toString()}`),
     products: (params: URLSearchParams) => request(`/api/search/products?${params.toString()}`),
     jobs: (params: URLSearchParams) => request(`/api/search/jobs?${params.toString()}`),

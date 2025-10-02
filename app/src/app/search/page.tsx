@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react';
 import { api } from '@/lib/api';
 
-type Tab = 'people' | 'companies' | 'products' | 'jobs' | 'posts' | 'events';
+type Tab = 'companies' | 'products' | 'jobs' | 'posts' | 'events';
 
 type AnyJson = any;
 
@@ -148,10 +148,30 @@ function JobCard({ job, onClick, onJobClick }: { job: any; onClick?: () => void;
 
 // Company Card Component  
 function CompanyCard({ company }: { company: any }) {
-  const name = company?.name || company?.companyName || 'Unknown Company';
-  const industry = company?.industry || '';
-  const location = company?.location || '';
-  const employees = company?.employeeCount || company?.size || '';
+  // Handle different API response structures
+  const name = company?.name || 
+               company?.companyName || 
+               company?.title || 
+               company?.primaryDescription?.text ||
+               company?.company?.name ||
+               'Unknown Company';
+  
+  const industry = company?.industry || 
+                   company?.industryType ||
+                   company?.category ||
+                   '';
+                   
+  const location = company?.location || 
+                   company?.headquarters ||
+                   company?.address ||
+                   company?.secondaryDescription?.text ||
+                   '';
+                   
+  const employees = company?.employeeCount || 
+                    company?.size || 
+                    company?.employeeSize ||
+                    company?.headcount ||
+                    '';
   
   return (
     <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200 hover:shadow-lg transition-shadow">
@@ -159,6 +179,16 @@ function CompanyCard({ company }: { company: any }) {
       {industry && <p className="text-blue-600 mt-1">{industry}</p>}
       {location && <p className="text-gray-600 text-sm mt-1">{location}</p>}
       {employees && <p className="text-gray-600 text-sm mt-1">{employees} employees</p>}
+      
+      {/* Debug info for development */}
+      {process.env.NODE_ENV === 'development' && (
+        <details className="mt-2 text-xs text-gray-500">
+          <summary>Debug Info</summary>
+          <pre className="mt-1 p-2 bg-gray-100 rounded text-xs overflow-auto max-h-32">
+            {JSON.stringify(company, null, 2)}
+          </pre>
+        </details>
+      )}
     </div>
   );
 }
@@ -178,22 +208,6 @@ function ProductCard({ product }: { product: any }) {
   );
 }
 
-// Person Card Component
-function PersonCard({ person }: { person: any }) {
-  const name = person?.name || person?.fullName || 'Unknown Person';
-  const title = person?.title || person?.headline || '';
-  const company = person?.company || person?.currentCompany || '';
-  const location = person?.location || '';
-  
-  return (
-    <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200 hover:shadow-lg transition-shadow">
-      <h3 className="text-lg font-semibold text-gray-900">{name}</h3>
-      {title && <p className="text-blue-600 mt-1">{title}</p>}
-      {company && <p className="text-gray-600 text-sm mt-1">{company}</p>}
-      {location && <p className="text-gray-600 text-sm mt-1">{location}</p>}
-    </div>
-  );
-}
 
 // Post Card Component
 function PostCard({ post }: { post: any }) {
@@ -238,8 +252,6 @@ function ResultCard({ result, type, onJobClick }: { result: any; type: Tab; onJo
       return <CompanyCard company={result} />;
     case 'products':
       return <ProductCard product={result} />;
-    case 'people':
-      return <PersonCard person={result} />;
     case 'posts':
       return <PostCard post={result} />;
     case 'events':
@@ -316,9 +328,6 @@ export default function SearchPage() {
     try {
       let data: any = {};
       switch (tab) {
-        case 'people':
-          data = await api.search.people(params);
-          break;
         case 'companies':
           data = await api.search.companies(params);
           break;
@@ -390,9 +399,9 @@ export default function SearchPage() {
   return (
     <main className="max-w-5xl mx-auto p-6 space-y-6">
       <h1 className="text-2xl font-semibold">LinkedIn Data Hub</h1>
-      <p className="text-gray-600">Search people, companies, products, jobs, posts, and events</p>
+      <p className="text-gray-600">Search companies, products, jobs, posts, and events</p>
       <div className="flex flex-wrap items-center gap-2">
-        {(['people','companies','products','jobs','posts','events'] as Tab[]).map((t) => (
+        {(['companies','products','jobs','posts','events'] as Tab[]).map((t) => (
           <button type="button" key={t} onClick={() => setTab(t)} className={`px-3 py-1 rounded ${tab===t?'bg-blue-600 text-white':'bg-gray-200'}`}>{t}</button>
         ))}
       </div>

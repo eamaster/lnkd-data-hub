@@ -3,7 +3,7 @@ import React from 'react';
 
 export const metadata = {
   title: 'LinkedIn Data Hub - Search Jobs, Companies & More',
-  description: 'Search LinkedIn for jobs, companies, people, products, posts, and events. Find your next career opportunity with our powerful search tool.',
+  description: 'Search LinkedIn for jobs, companies, products, posts, and events. Find your next career opportunity with our powerful search tool.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

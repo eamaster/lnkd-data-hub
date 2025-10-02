@@ -77,19 +77,12 @@ function getValidatedSearchParams<T extends z.ZodRawShape>(url: URL, schema: z.Z
   return schema.parse(params);
 }
 
-app.get('/api/search/people', async (c) => {
-  const g = await guard(c); if (g) return g;
-  const schema = z.object({ q: z.string().optional(), limit: z.coerce.number().min(1).max(50).optional(), offset: z.coerce.number().min(0).optional(), location: z.string().optional(), function: z.string().optional() });
-  let parsed; try { parsed = getValidatedSearchParams(new URL(c.req.url), schema); } catch (e: any) { return jsonError(400, 'Invalid query', e.issues); }
-  const path = `/people/search?${new URLSearchParams({ query: parsed.q || '', limit: String(parsed.limit||10), offset: String(parsed.offset||0), location: parsed.location||'', function: parsed.function||'' })}`;
-  return cacheFetch(c.req.raw, c.env, async () => withConcurrency(() => fetchRapid(c.env, path)));
-});
 
 app.get('/api/search/companies', async (c) => {
   const g = await guard(c); if (g) return g;
   const schema = z.object({ q: z.string().optional(), industry: z.string().optional(), limit: z.coerce.number().min(1).max(50).optional(), offset: z.coerce.number().min(0).optional() });
   let parsed; try { parsed = getValidatedSearchParams(new URL(c.req.url), schema); } catch (e: any) { return jsonError(400, 'Invalid query', e.issues); }
-  const path = `/company/search?${new URLSearchParams({ query: parsed.q || '', industry: parsed.industry||'', limit: String(parsed.limit||10), offset: String(parsed.offset||0) })}`;
+  const path = `/search/company?${new URLSearchParams({ query: parsed.q || '', industry: parsed.industry||'', limit: String(parsed.limit||10), offset: String(parsed.offset||0) })}`;
   return cacheFetch(c.req.raw, c.env, async () => withConcurrency(() => fetchRapid(c.env, path)));
 });
 
