@@ -31,7 +31,7 @@ app.use('*', async (c, next) => {
   ];
 
   const origin = c.req.header('Origin') || '';
-  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0]!;
   
   c.res.headers.set('Access-Control-Allow-Origin', allowedOrigin);
   c.res.headers.set('Vary', 'Origin');
@@ -47,7 +47,6 @@ app.use('*', async (c, next) => {
 // Bind KV shim if missing
 app.use('*', async (c, next) => {
   if (!c.env.LINKEDIN_HUB_KV) {
-    // @ts-expect-error attach shim for local dev
     c.env.LINKEDIN_HUB_KV = kvShim() as any;
   }
   await next();
@@ -69,7 +68,10 @@ async function guard(c: any) {
 }
 
 function getValidatedSearchParams<T extends z.ZodRawShape>(url: URL, schema: z.ZodObject<T>) {
-  const params = Object.fromEntries(url.searchParams.entries());
+  const params: Record<string, string> = {};
+  url.searchParams.forEach((value, key) => {
+    params[key] = value;
+  });
   return schema.parse(params);
 }
 

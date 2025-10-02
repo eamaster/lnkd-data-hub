@@ -12,6 +12,7 @@ export function parseBearer(authHeader?: string): string | null {
 export function decodeJwtWithoutVerify(token: string): any | null {
   try {
     const [, payload] = token.split('.');
+    if (!payload) return null;
     const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
     return JSON.parse(json);
   } catch {
