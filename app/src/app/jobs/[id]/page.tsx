@@ -1,10 +1,11 @@
 // Generate static params for static export
 export async function generateStaticParams() {
-  return [
-    { id: '1' },
-    { id: '2' },
-    { id: '3' },
-  ];
+  // Generate more static params for common job IDs
+  const staticIds = [];
+  for (let i = 1; i <= 20; i++) {
+    staticIds.push({ id: i.toString() });
+  }
+  return staticIds;
 }
 
 import JobDetailClient from './JobDetailClient';

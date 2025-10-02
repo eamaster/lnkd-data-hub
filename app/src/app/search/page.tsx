@@ -39,7 +39,7 @@ function normalizeResults(payload: AnyJson): any[] {
 }
 
 // Job Card Component
-function JobCard({ job, onClick }: { job: any; onClick?: () => void }) {
+function JobCard({ job, onClick, onJobClick }: { job: any; onClick?: () => void; onJobClick?: (jobData: any) => void }) {
   const card = job?.jobCard?.jobPostingCard;
   if (!card) return <div className="text-gray-500">Invalid job data</div>;
 
@@ -63,8 +63,8 @@ function JobCard({ job, onClick }: { job: any; onClick?: () => void }) {
     <div 
       className="bg-white rounded-lg shadow-md p-6 border border-gray-200 hover:shadow-lg transition-shadow cursor-pointer hover:border-blue-300"
         onClick={onClick || (() => {
-    if (jobId) {
-      // Pass job data via URL to avoid losing information
+    if (jobId && onJobClick) {
+      // Show job details in modal
       const jobData = {
         id: jobId,
         title,
@@ -72,10 +72,10 @@ function JobCard({ job, onClick }: { job: any; onClick?: () => void }) {
         location,
         isPromoted,
         hasEasyApply,
-        logoUrl
+        logoUrl,
+        fullData: card
       };
-      const encodedData = encodeURIComponent(JSON.stringify(jobData));
-      window.open(`/jobs/${jobId}?data=${encodedData}`, '_blank');
+      onJobClick(jobData);
     }
   })}
     >
@@ -220,10 +220,10 @@ function EventCard({ event }: { event: any }) {
 }
 
 // Result Card Component
-function ResultCard({ result, type }: { result: any; type: Tab }) {
+function ResultCard({ result, type, onJobClick }: { result: any; type: Tab; onJobClick?: (jobData: any) => void }) {
   switch (type) {
     case 'jobs':
-      return <JobCard job={result} />;
+      return <JobCard job={result} onJobClick={onJobClick} />;
     case 'companies':
       return <CompanyCard company={result} />;
     case 'products':
@@ -252,6 +252,8 @@ export default function SearchPage() {
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedJob, setSelectedJob] = useState<any>(null);
+  const [showJobModal, setShowJobModal] = useState(false);
   
   // Enhanced search filters (primarily for jobs)
   const [location, setLocation] = useState('');
@@ -326,6 +328,9 @@ export default function SearchPage() {
             console.log('🌍 Location mapping:', { location, match, geo });
             if (geo) params.set('geo', String(geo));
           }
+          // Add parameters to try to get more diverse results
+          params.set('offsite', '1'); // Try to get non-promoted results
+          if (!params.has('limit')) params.set('limit', '20'); // Get more results
           console.log('🎯 Final job search params:', params.toString());
           data = await api.search.jobs(params);
           console.log('📊 API response data:', data);
@@ -573,7 +578,15 @@ export default function SearchPage() {
           </div>
         )}
         {!loading && results.map((result, i) => (
-          <ResultCard key={i} result={result} type={tab} />
+          <ResultCard 
+            key={i} 
+            result={result} 
+            type={tab} 
+            onJobClick={(jobData) => {
+              setSelectedJob(jobData);
+              setShowJobModal(true);
+            }}
+          />
         ))}
       </div>
       {results.length > 0 && (
@@ -585,6 +598,59 @@ export default function SearchPage() {
           >
             {loading ? 'Loading...' : (canLoadMore ? 'Load More' : 'No more results')}
           </button>
+        </div>
+      )}
+      
+      {/* Job Details Modal */}
+      {showJobModal && selectedJob && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-4">
+                <h2 className="text-2xl font-bold text-gray-900">{selectedJob.title}</h2>
+                <button
+                  onClick={() => setShowJobModal(false)}
+                  className="text-gray-400 hover:text-gray-600 text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="flex items-center gap-4">
+                  {selectedJob.logoUrl && (
+                    <img 
+                      src={selectedJob.logoUrl} 
+                      alt={`${selectedJob.company} logo`}
+                      className="w-16 h-16 rounded-lg object-cover"
+                    />
+                  )}
+                  <div>
+                    <h3 className="text-xl font-semibold text-gray-900">{selectedJob.company}</h3>
+                    <p className="text-gray-600">{selectedJob.location}</p>
+                    {selectedJob.isPromoted && (
+                      <span className="inline-block bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded mt-1">
+                        Promoted
+                      </span>
+                    )}
+                  </div>
+                </div>
+                
+                {selectedJob.hasEasyApply && (
+                  <div className="bg-green-100 text-green-800 px-3 py-2 rounded-lg">
+                    ✓ Easy Apply Available
+                  </div>
+                )}
+                
+                <div className="border-t pt-4">
+                  <h4 className="font-semibold text-gray-900 mb-2">Full Job Data:</h4>
+                  <pre className="bg-gray-100 p-4 rounded-lg text-xs overflow-auto max-h-60">
+                    {JSON.stringify(selectedJob.fullData, null, 2)}
+                  </pre>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </main>
