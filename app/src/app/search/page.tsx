@@ -73,7 +73,17 @@ function JobCard({ job, onClick, onJobClick }: { job: any; onClick?: () => void;
         isPromoted,
         hasEasyApply,
         logoUrl,
-        fullData: card
+        fullData: card,
+        // Extract additional useful information
+        jobDescription: card.jobPostingTitle || title,
+        companyName: card.primaryDescription?.text || company,
+        jobLocation: card.secondaryDescription?.text || location,
+        relevanceInsight: card.relevanceInsight?.text?.text,
+        footerItems: card.footerItems || [],
+        companyLogo: card.companyLogo,
+        jobPosting: card.jobPosting,
+        entityUrn: card.entityUrn,
+        trackingId: card.trackingId
       };
       onJobClick(jobData);
     }
@@ -642,12 +652,97 @@ export default function SearchPage() {
                   </div>
                 )}
                 
+                {/* Job Description */}
                 <div className="border-t pt-4">
-                  <h4 className="font-semibold text-gray-900 mb-2">Full Job Data:</h4>
-                  <pre className="bg-gray-100 p-4 rounded-lg text-xs overflow-auto max-h-60">
+                  <h4 className="font-semibold text-gray-900 mb-2">Job Details</h4>
+                  <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+                    {/* Job Title */}
+                    <div>
+                      <h5 className="font-semibold text-lg text-gray-900">
+                        {selectedJob.jobDescription || selectedJob.title}
+                      </h5>
+                    </div>
+
+                    {/* Company and Location */}
+                    <div className="space-y-1">
+                      <p className="text-gray-700 font-medium">
+                        {selectedJob.companyName || selectedJob.company}
+                      </p>
+                      <p className="text-gray-600">
+                        📍 {selectedJob.jobLocation || selectedJob.location}
+                      </p>
+                    </div>
+                    
+                    {/* Job Status Tags */}
+                    <div className="flex flex-wrap gap-2">
+                      {selectedJob.footerItems?.map((item: any, index: number) => (
+                        <span 
+                          key={index}
+                          className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            item.type === 'PROMOTED' 
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : item.type === 'EASY_APPLY_TEXT'
+                              ? 'bg-green-100 text-green-800'
+                              : item.type === 'LISTED_DATE'
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'bg-gray-100 text-gray-800'
+                          }`}
+                        >
+                          {item.text?.text || item.type}
+                        </span>
+                      ))}
+                    </div>
+
+                    {/* Relevance Insight */}
+                    {selectedJob.relevanceInsight && (
+                      <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+                        <div className="flex items-center gap-2">
+                          <span className="text-green-600">✓</span>
+                          <p className="text-sm text-green-800 font-medium">
+                            {selectedJob.relevanceInsight}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Job ID and Tracking Info */}
+                    <div className="text-xs text-gray-500 space-y-1">
+                      {selectedJob.entityUrn && (
+                        <p>Job ID: {selectedJob.entityUrn.split(':').pop()}</p>
+                      )}
+                      {selectedJob.trackingId && (
+                        <p>Tracking: {selectedJob.trackingId.substring(0, 20)}...</p>
+                      )}
+                    </div>
+
+                    {/* Company Logo */}
+                    {selectedJob.companyLogo?.attributes?.[0]?.detailData?.companyLogo?.logoResolutionResult?.vectorImage && (
+                      <div className="flex items-center gap-3 pt-2 border-t">
+                        <img 
+                          src={`${selectedJob.companyLogo.attributes[0].detailData.companyLogo.logoResolutionResult.vectorImage.rootUrl}${selectedJob.companyLogo.attributes[0].detailData.companyLogo.logoResolutionResult.vectorImage.artifacts[0]?.fileIdentifyingUrlPathSegment}`}
+                          alt={`${selectedJob.company} logo`}
+                          className="w-12 h-12 rounded object-cover"
+                        />
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">
+                            {selectedJob.companyName || selectedJob.company}
+                          </p>
+                          <p className="text-xs text-gray-600">Company Profile</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Technical Details (Collapsible) */}
+                <details className="border-t pt-4">
+                  <summary className="font-semibold text-gray-900 cursor-pointer hover:text-blue-600">
+                    Technical Details (Click to expand)
+                  </summary>
+                  <pre className="bg-gray-100 p-4 rounded-lg text-xs overflow-auto max-h-60 mt-2">
                     {JSON.stringify(selectedJob.fullData, null, 2)}
                   </pre>
-                </div>
+                </details>
               </div>
             </div>
           </div>
