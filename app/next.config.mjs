@@ -3,6 +3,7 @@ const nextConfig = {
   reactStrictMode: true,
   output: 'export',
   trailingSlash: true,
+  basePath: '/lnkd-data-hub',
   images: {
     unoptimized: true
   },
